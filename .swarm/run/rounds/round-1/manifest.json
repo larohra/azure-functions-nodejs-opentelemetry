@@ -1,0 +1,7 @@
+{
+  "roundNumber": 1,
+  "taskIds": [
+    "harden-version-update-script",
+    "add-versioning-regression-tests"
+  ]
+}

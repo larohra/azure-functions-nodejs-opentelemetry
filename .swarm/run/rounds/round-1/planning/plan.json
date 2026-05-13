@@ -1,0 +1,24 @@
+{
+  "designDocument": "## Context\n\u0060scripts/updateVersion.ts\u0060 is internal build/release tooling invoked from Azure Pipelines (\u0060azure-pipelines/templates/build.yml\u0060 and \u0060test.yml\u0060) through \u0060npm run updateVersion\u0060. It is not part of the published customer surface: \u0060package.json\u0060 only ships \u0060dist/\u0060, \u0060src/\u0060, \u0060types/\u0060, \u0060LICENSE\u0060, and \u0060README.md\u0060, and the build artifact copy step omits \u0060scripts/\u0060.\n\n## Finding assessment\n- The RCE finding is **real and actionable**: \u0060execSync(\u0060npm version ${newVersion} ...\u0060)\u0060 interpolates \u0060--version\u0060 or \u0060--buildNumber\u0060-derived input into a shell command.\n- The exposure is **limited to maintainer/CI contexts**, so this is not a production runtime exploit for library consumers, but it is still a valid supply-chain/SFI hardening issue and worth fixing.\n- The fix is therefore necessary, but mainly for internal release safety rather than customer runtime protection.\n\n## Historical context\nThe file was added in the repo\u2019s initial commit and closely matches the older \u0060scripts/updateVersion.ts\u0060 used in \u0060Azure/azure-functions-nodejs-worker\u0060, so the current design looks intentionally inherited for release automation convenience. The missed gap is shell-safety and input hardening, not the versioning workflow itself.\n\n## Proposed change\n- Refactor the script into testable helpers.\n- Remove shell execution from package version updates; use a shell-free implementation that keeps \u0060package.json\u0060, \u0060package-lock.json\u0060 root version fields, and \u0060src/constants.ts\u0060 synchronized.\n- Validate explicit versions and build-number-derived versions with \u0060semver\u0060 before any file mutation.\n- Preserve the existing CLI contract (\u0060--validate\u0060, \u0060--version\u0060, \u0060--buildNumber\u0060) and current prerelease formatting so the Azure Pipelines build/test flows continue to work unchanged.\n\n## Regression / contract expectations\n- Expected regression risk is low if the same files and CLI semantics are preserved.\n- No customer-facing or host/worker contract break is expected because only internal repo tooling changes and the published package/runtime APIs remain untouched.\n- Current CI already runs build/lint/test/version-validation across Node 18/20/22, but there is **no dedicated unit coverage** for the release script or malicious-input paths; adding focused tests is the main confidence gap to close.",
+  "tasks": [
+    {
+      "id": "harden-version-update-script",
+      "title": "Refactor release version updater",
+      "description": "Update \u0060scripts/updateVersion.ts\u0060 so CLI parsing delegates to pure helpers instead of building a shell command. Remove \u0060execSync\u0060, validate \u0060--version\u0060 and any \u0060--buildNumber\u0060-derived version with \u0060semver\u0060 before mutating files, and keep \u0060package.json\u0060, \u0060package-lock.json\u0060 root version entries, and \u0060src/constants.ts\u0060 synchronized. Preserve the existing CLI flags, usage text, and prerelease formatting so the Azure Pipelines build/test steps continue to work without contract changes.",
+      "dependencies": [],
+      "roundNumber": 1,
+      "branchName": "worker/task-1"
+    },
+    {
+      "id": "add-versioning-regression-tests",
+      "title": "Add release-script security tests",
+      "description": "Add focused coverage for the versioning script (for example \u0060test/updateVersion.test.ts\u0060) using temp fixtures or exported helpers from task 1. Cover \u0060--validate\u0060, explicit \u0060--version\u0060 updates, prerelease \u0060--buildNumber\u0060 generation with and without an existing \u0060alpha\u0060 suffix, mismatch detection, and rejection of shell-metacharacter or otherwise invalid version input. After the tests are in place, run \u0060npm run build\u0060, \u0060npm run lint\u0060, \u0060npm test\u0060, \u0060npm run updateVersion -- --validate\u0060, and a temp-copy smoke of the \u0060--buildNumber\u0060 path to confirm the hardened implementation is non-breaking.",
+      "dependencies": [
+        "harden-version-update-script"
+      ],
+      "roundNumber": 1,
+      "branchName": "worker/task-2"
+    }
+  ],
+  "title": "Secure internal release versioning tooling"
+}
