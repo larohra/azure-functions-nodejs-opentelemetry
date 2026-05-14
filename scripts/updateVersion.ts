@@ -68,7 +68,7 @@ export function main(
 }
 
 export function getCliRequest(argv: string[]): CliRequest {
-    const args = parseArgs(argv);
+    const args = parseArgs(argv, { string: ['buildNumber', 'version'] });
     return getCliRequestFromArgs(args);
 }
 

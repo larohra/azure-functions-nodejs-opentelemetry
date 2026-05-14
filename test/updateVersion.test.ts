@@ -80,6 +80,19 @@ describe('updateVersion', () => {
         });
     });
 
+    it('preserves trailing zeros in build numbers (e.g. 20230517.10)', () => {
+        const filePaths = createVersionFixture(tempDirs, { packageJsonVersion: '1.2.3' });
+
+        processCliRequest(getCliRequest(['--buildNumber', '20230517.10']), filePaths);
+
+        expect(readFixtureState(filePaths)).to.deep.equal({
+            packageJsonVersion: '1.2.3-alpha.20230517.10',
+            packageLockVersion: '1.2.3-alpha.20230517.10',
+            packageLockRootVersion: '1.2.3-alpha.20230517.10',
+            constantsVersion: '1.2.3-alpha.20230517.10',
+        });
+    });
+
     it('fails validation when tracked versions drift', () => {
         const filePaths = createVersionFixture(tempDirs, {
             packageJsonVersion: '1.2.3',
